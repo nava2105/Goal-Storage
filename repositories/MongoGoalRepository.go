@@ -13,7 +13,6 @@ type GoalRepository interface {
 	Create(goal *models.GoalsModel) (*models.GoalsModel, error)
 	Update(goalID int64, goal *models.GoalsModel) (*models.GoalsModel, error)
 	GetByID(goalID int64) (*models.GoalsModel, error)
-	Delete(goalID int64) error
 }
 
 type MongoGoalRepository struct {
@@ -37,12 +36,12 @@ func (r *MongoGoalRepository) Create(goal *models.GoalsModel) (*models.GoalsMode
 	return goal, nil
 }
 
-func (r *MongoGoalRepository) Update(goalID int64, goal *models.GoalsModel) (*models.GoalsModel, error) {
+func (r *MongoGoalRepository) Update(userID int64, goal *models.GoalsModel) (*models.GoalsModel, error) {
 	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 	defer cancel()
 
 	collection := initializers.GetMongoCollection("ptrainer_goals", r.Collection)
-	filter := bson.M{"_id": goalID}
+	filter := bson.M{"user_id": userID}
 	update := bson.M{"$set": goal}
 	_, err := collection.UpdateOne(ctx, filter, update)
 	if err != nil {
@@ -51,12 +50,12 @@ func (r *MongoGoalRepository) Update(goalID int64, goal *models.GoalsModel) (*mo
 	return goal, nil
 }
 
-func (r *MongoGoalRepository) GetByID(goalID int64) (*models.GoalsModel, error) {
+func (r *MongoGoalRepository) GetByID(userID int64) (*models.GoalsModel, error) {
 	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 	defer cancel()
 
 	collection := initializers.GetMongoCollection("ptrainer_goals", r.Collection)
-	filter := bson.M{"_id": goalID}
+	filter := bson.M{"user_id": userID}
 
 	var goal models.GoalsModel
 	err := collection.FindOne(ctx, filter).Decode(&goal)
@@ -64,18 +63,4 @@ func (r *MongoGoalRepository) GetByID(goalID int64) (*models.GoalsModel, error) 
 		return nil, err
 	}
 	return &goal, nil
-}
-
-func (r *MongoGoalRepository) Delete(goalID int64) error {
-	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
-	defer cancel()
-
-	collection := initializers.GetMongoCollection("ptrainer_goals", r.Collection)
-	filter := bson.M{"_id": goalID}
-
-	_, err := collection.DeleteOne(ctx, filter)
-	if err != nil {
-		return err
-	}
-	return nil
 }

@@ -31,8 +31,8 @@ func (f *ConcreteGoalFactory) CreateGoal(input dtos.CreateGoalInput) (*models.Go
 	return f.Repository.Create(goal)
 }
 
-func (f *ConcreteGoalFactory) UpdateGoal(goalID int64, input dtos.CreateGoalInput) (*models.GoalsModel, error) {
-	existingGoal, err := f.Repository.GetByID(goalID)
+func (f *ConcreteGoalFactory) UpdateGoal(userID int64, input dtos.CreateGoalInput) (*models.GoalsModel, error) {
+	existingGoal, err := f.Repository.GetByID(userID)
 	if err != nil {
 		return nil, err
 	}
@@ -41,15 +41,10 @@ func (f *ConcreteGoalFactory) UpdateGoal(goalID int64, input dtos.CreateGoalInpu
 	existingGoal.Body_structure = input.Body_structure
 
 	// Delegates update to repository
-	return f.Repository.Update(goalID, existingGoal)
+	return f.Repository.Update(userID, existingGoal)
 }
 
-func (f *ConcreteGoalFactory) GetGoalByID(goalID int64) (*models.GoalsModel, error) {
+func (f *ConcreteGoalFactory) GetGoalByID(userID int64) (*models.GoalsModel, error) {
 	// Delegates retrieval to repository
-	return f.Repository.GetByID(goalID)
-}
-
-func (f *ConcreteGoalFactory) DeleteGoal(goalID int64) error {
-	// Delegates deletion to repository
-	return f.Repository.Delete(goalID)
+	return f.Repository.GetByID(userID)
 }

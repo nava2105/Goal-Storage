@@ -2,17 +2,19 @@ package main
 
 import (
 	"Goal-Storage/config"
-	"Goal-Storage/dtos"
 	"Goal-Storage/factories"
 	"Goal-Storage/initializers"
 	"Goal-Storage/middleware"
 	"Goal-Storage/repositories"
 	"Goal-Storage/service"
+	"context"
 	"encoding/json"
+	"fmt"
 	"github.com/gorilla/handlers"
 	"github.com/gorilla/mux"
 	"github.com/graphql-go/graphql"
 	"github.com/joho/godotenv"
+	"go.mongodb.org/mongo-driver/mongo"
 	"log"
 	"net/http"
 	"os"
@@ -30,31 +32,22 @@ func main() {
 	cfg := config.LoadConfig()
 	// Initialize MongoDB
 	initializers.InitializeMongoDB(cfg.MongoURI)
-	defer initializers.MongoClient.Disconnect(nil)
+	defer func(MongoClient *mongo.Client, ctx context.Context) {
+		err := MongoClient.Disconnect(ctx)
+		if err != nil {
+			log.Fatal(err)
+		}
+	}(initializers.MongoClient, nil)
 	// Initialize repository
 	repo := repositories.NewMongoGoalRepository("ptrainer_goals")
-
 	// Initialize factory
 	factory := factories.NewConcreteGoalFactory(repo)
-
-	// Example: Create a New Goal
-	input := dtos.CreateGoalInput{
-		User_id:        1,
-		Weight:         75.5,
-		Body_structure: "Mesomorph",
-	}
-
-	goal, err := factory.CreateGoal(input)
-	if err != nil {
-		log.Fatalf("Failed to create goal: %v", err)
-	}
-	log.Printf("Created Goal: %+v\n", goal)
 	// Create a new GraphQL schema
-	schema := service.CreateGraphQLSchema()
+	schema := service.CreateGraphQLSchema(factory)
 	// Set up the HTTP server
 	r := mux.NewRouter()
 	// GraphQL handler
-	r.HandleFunc("/graphql", func(w http.ResponseWriter, r *http.Request) {
+	r.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
 		// Parse the GraphQL query
 		var requestBody struct {
 			Query string `json:"query"`
@@ -63,37 +56,84 @@ func main() {
 			http.Error(w, "Failed to parse request body", http.StatusBadRequest)
 			return
 		}
-
-		// Execute the query
 		result := graphql.Do(graphql.Params{
+			// Execute the query
 			Schema:        schema,
 			RequestString: requestBody.Query,
 			Context:       r.Context(), // Pass context for token extraction
 		})
-
-		// Check for errors
 		if len(result.Errors) > 0 {
 			w.WriteHeader(http.StatusBadRequest)
-			json.NewEncoder(w).Encode(map[string]interface{}{
+			err := json.NewEncoder(w).Encode(map[string]interface{}{
 				"errors": result.Errors,
 			})
+			if err != nil {
+				return
+			}
 			return
 		}
-
-		// Custom response format: extract and return only the required field
-		// Extract "userId" from the data object
 		userId, ok := result.Data.(map[string]interface{})["userId"]
 		if !ok {
 			http.Error(w, "Failed to process data", http.StatusInternalServerError)
 			return
 		}
-
-		// Send the custom response
 		w.Header().Set("Content-Type", "application/json")
-		json.NewEncoder(w).Encode(map[string]interface{}{
+		err := json.NewEncoder(w).Encode(map[string]interface{}{
 			"userId": userId,
 		})
+		if err != nil {
+			return
+		}
 	}).Methods(http.MethodGet)
+	r.HandleFunc("/register/goal", func(w http.ResponseWriter, r *http.Request) {
+		userId, err := service.GetUserIDFromRequest(r)
+		if err != nil {
+			http.Error(w, err.Error(), http.StatusUnauthorized)
+			return
+		}
+		// Parse the GraphQL query
+		var requestBody struct {
+			Weight        float64 `json:"weight"`
+			BodyStructure string  `json:"body_structure"`
+		}
+		if err := json.NewDecoder(r.Body).Decode(&requestBody); err != nil {
+			http.Error(w, "Failed to parse request body", http.StatusBadRequest)
+			return
+		}
+		query := `
+			mutation {
+				createGoal(userId: %d, weight: %f, body_structure: "%s") {
+					goalId
+					userId
+					weight
+					body_structure
+				}
+			}
+		`
+		mutation := fmt.Sprintf(query, userId, requestBody.Weight, requestBody.BodyStructure)
+		result := graphql.Do(graphql.Params{
+			// Execute the query
+			Schema:        schema,
+			RequestString: mutation,
+			Context:       context.WithValue(r.Context(), "factory", factory), // Pass context for token extraction
+		})
+
+		if len(result.Errors) > 0 {
+			w.WriteHeader(http.StatusInternalServerError)
+			err := json.NewEncoder(w).Encode(map[string]interface{}{
+				"errors": result.Errors,
+			})
+			if err != nil {
+				return
+			}
+			return
+		}
+		w.Header().Set("Content-Type", "application/json")
+		er := json.NewEncoder(w).Encode(result.Data)
+		if er != nil {
+			return
+		}
+	}).Methods(http.MethodPost)
 	r.Use(middleware.AuthMiddleware)
 	// Start the server
 	port := os.Getenv("PORT")
