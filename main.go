@@ -195,6 +195,33 @@ func main() {
 			return
 		}
 	}).Methods(http.MethodPost)
+	r.HandleFunc("/get/goal", func(w http.ResponseWriter, r *http.Request) {
+		// Extract the user ID from the Authorization token
+		userId, err := service.GetUserIDFromRequest(r)
+		if err != nil {
+			http.Error(w, err.Error(), http.StatusUnauthorized)
+			return
+		}
+
+		// Fetch the goal for the authenticated user
+		factory := context.WithValue(r.Context(), "factory", factory).Value("factory").(factories.GoalFactory)
+		goal, err := factory.GetGoalByID(int64(userId))
+		if err != nil {
+			http.Error(w, "Failed to retrieve goal", http.StatusInternalServerError)
+			return
+		}
+
+		if goal == nil {
+			http.Error(w, "No active goal found for the user", http.StatusNotFound)
+			return
+		}
+
+		// Return the goal as a JSON response
+		w.Header().Set("Content-Type", "application/json")
+		if err := json.NewEncoder(w).Encode(goal); err != nil {
+			http.Error(w, "Failed to encode goal response", http.StatusInternalServerError)
+		}
+	}).Methods(http.MethodGet)
 	r.Use(middleware.AuthMiddleware)
 	// Start the server
 	port := os.Getenv("PORT")
