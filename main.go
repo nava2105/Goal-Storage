@@ -134,6 +134,67 @@ func main() {
 			return
 		}
 	}).Methods(http.MethodPost)
+	r.HandleFunc("/modify/goal", func(w http.ResponseWriter, r *http.Request) {
+		// Extract the userId from the Authorization token
+		userId, err := service.GetUserIDFromRequest(r)
+		if err != nil {
+			http.Error(w, err.Error(), http.StatusUnauthorized)
+			return
+		}
+		// Parse the incoming request body for modifications
+		var requestBody struct {
+			Weight        float64 `json:"weight"`
+			BodyStructure string  `json:"body_structure"`
+		}
+		if err := json.NewDecoder(r.Body).Decode(&requestBody); err != nil {
+			http.Error(w, "Failed to parse request body", http.StatusBadRequest)
+			return
+		}
+		// Fetch the active goal for the user
+		factory := context.WithValue(r.Context(), "factory", factory).Value("factory").(factories.GoalFactory)
+		existingGoal, err := factory.GetGoalByID(int64(userId))
+		if err != nil || existingGoal == nil {
+			http.Error(w, "No active goal found for the user", http.StatusNotFound)
+			return
+		}
+		// Dynamically create the GraphQL mutation query for goal modification
+		query := `
+    mutation {
+        updateGoal(goalId: "%s", userId: %d, weight: %f, body_structure: "%s") {
+            goalId
+            userId
+            weight
+            body_structure
+        }
+    }
+`
+		mutation := fmt.Sprintf(query, existingGoal.Goal_id, userId, requestBody.Weight, requestBody.BodyStructure)
+		// Execute the mutation via the GraphQL schema
+		result := graphql.Do(graphql.Params{
+			Schema:        schema,
+			RequestString: mutation,
+			Context:       context.WithValue(r.Context(), "factory", factory),
+		})
+
+		// Handle GraphQL execution errors
+		if len(result.Errors) > 0 {
+			w.WriteHeader(http.StatusInternalServerError)
+			err := json.NewEncoder(w).Encode(map[string]interface{}{
+				"errors": result.Errors,
+			})
+			if err != nil {
+				return
+			}
+			return
+		}
+
+		// Return the updated goal to the client
+		w.Header().Set("Content-Type", "application/json")
+		er := json.NewEncoder(w).Encode(result.Data)
+		if er != nil {
+			return
+		}
+	}).Methods(http.MethodPost)
 	r.Use(middleware.AuthMiddleware)
 	// Start the server
 	port := os.Getenv("PORT")

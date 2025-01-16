@@ -4,6 +4,7 @@ import (
 	"Goal-Storage/initializers"
 	"Goal-Storage/models"
 	"context"
+	"fmt"
 	"time"
 
 	"go.mongodb.org/mongo-driver/bson"
@@ -32,7 +33,11 @@ func (r *MongoGoalRepository) Create(goal *models.GoalsModel) (*models.GoalsMode
 	if err != nil {
 		return nil, err
 	}
-	goal.Goal_id, _ = result.InsertedID.(int64)
+	if objectId, ok := result.InsertedID.(interface{ Hex() string }); ok {
+		goal.Goal_id = objectId.Hex()
+	} else {
+		return nil, fmt.Errorf("failed to convert ObjectId to string")
+	}
 	return goal, nil
 }
 
@@ -41,8 +46,14 @@ func (r *MongoGoalRepository) Update(userID int64, goal *models.GoalsModel) (*mo
 	defer cancel()
 
 	collection := initializers.GetMongoCollection("ptrainer_goals", r.Collection)
+	update := bson.M{
+		"$set": bson.M{
+			"user_id":        goal.User_id,
+			"weight":         goal.Weight,
+			"body_structure": goal.Body_structure,
+		},
+	}
 	filter := bson.M{"user_id": userID}
-	update := bson.M{"$set": goal}
 	_, err := collection.UpdateOne(ctx, filter, update)
 	if err != nil {
 		return nil, err

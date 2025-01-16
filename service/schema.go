@@ -79,19 +79,28 @@ func CreateGraphQLSchema(factory factories.GoalFactory) graphql.Schema {
 		"updateGoal": &graphql.Field{
 			Type: goalType, // Defined below
 			Args: graphql.FieldConfigArgument{
-				"goalId":         &graphql.ArgumentConfig{Type: graphql.NewNonNull(graphql.Int)},
+				"goalId":         &graphql.ArgumentConfig{Type: graphql.NewNonNull(graphql.String)},
 				"userId":         &graphql.ArgumentConfig{Type: graphql.NewNonNull(graphql.Int)},
 				"weight":         &graphql.ArgumentConfig{Type: graphql.NewNonNull(graphql.Float)},
 				"body_structure": &graphql.ArgumentConfig{Type: graphql.NewNonNull(graphql.String)},
 			},
 			Resolve: func(p graphql.ResolveParams) (interface{}, error) {
+				factory := p.Context.Value("factory").(factories.GoalFactory)
+				goalId := p.Args["goalId"].(string)
+				userID := int64(p.Args["userId"].(int))
+				existingGoal, err := factory.GetGoalByID(userID)
+				if err != nil {
+					return nil, errors.New("failed to retrieve goal")
+				}
+				if existingGoal == nil || existingGoal.Goal_id != goalId {
+					return nil, errors.New("goal not found or does not belong to the user")
+				}
 				updateGoalInput := dtos.CreateGoalInput{
-					User_id:        int64(p.Args["userId"].(int)),
+					User_id:        userID,
 					Weight:         p.Args["weight"].(float64),
 					Body_structure: p.Args["body_structure"].(string),
 				}
-				goalId := int64(p.Args["goalId"].(int))
-				return factory.UpdateGoal(goalId, updateGoalInput)
+				return factory.UpdateGoal(userID, updateGoalInput)
 			},
 		},
 	}
