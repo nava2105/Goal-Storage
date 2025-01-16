@@ -17,14 +17,14 @@ func NewConcreteGoalFactory(repo repositories.GoalRepository) *ConcreteGoalFacto
 
 func (f *ConcreteGoalFactory) CreateGoal(input dtos.CreateGoalInput) (*models.GoalsModel, error) {
 	// Validation checks
-	if input.User_id == 0 || input.Weight <= 0 {
+	if input.UserId == 0 || input.Weight <= 0 {
 		return nil, errors.New("invalid goal input data")
 	}
 
 	goal := &models.GoalsModel{
-		User_id:        input.User_id,
-		Weight:         input.Weight,
-		Body_structure: input.Body_structure,
+		UserId:        input.UserId,
+		Weight:        input.Weight,
+		BodyStructure: input.BodyStructure,
 	}
 
 	// Delegates creation to repository
@@ -38,7 +38,7 @@ func (f *ConcreteGoalFactory) UpdateGoal(userID int64, input dtos.CreateGoalInpu
 	}
 
 	existingGoal.Weight = input.Weight
-	existingGoal.Body_structure = input.Body_structure
+	existingGoal.BodyStructure = input.BodyStructure
 
 	// Delegates update to repository
 	return f.Repository.Update(userID, existingGoal)

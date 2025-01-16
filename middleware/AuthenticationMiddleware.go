@@ -5,7 +5,7 @@ import (
 	"net/http"
 )
 
-// Middleware to extract the authorization header and attach it to the context
+// AuthMiddleware Middleware to extract the authorization header and attach it to the context
 func AuthMiddleware(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		// Get Authorization header

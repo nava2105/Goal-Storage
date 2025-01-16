@@ -34,7 +34,7 @@ func (r *MongoGoalRepository) Create(goal *models.GoalsModel) (*models.GoalsMode
 		return nil, err
 	}
 	if objectId, ok := result.InsertedID.(interface{ Hex() string }); ok {
-		goal.Goal_id = objectId.Hex()
+		goal.GoalId = objectId.Hex()
 	} else {
 		return nil, fmt.Errorf("failed to convert ObjectId to string")
 	}
@@ -48,9 +48,9 @@ func (r *MongoGoalRepository) Update(userID int64, goal *models.GoalsModel) (*mo
 	collection := initializers.GetMongoCollection("ptrainer_goals", r.Collection)
 	update := bson.M{
 		"$set": bson.M{
-			"user_id":        goal.User_id,
+			"user_id":        goal.UserId,
 			"weight":         goal.Weight,
-			"body_structure": goal.Body_structure,
+			"body_structure": goal.BodyStructure,
 		},
 	}
 	filter := bson.M{"user_id": userID}

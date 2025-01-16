@@ -11,9 +11,9 @@ func GetUserIDFromRequest(r *http.Request) (int, error) {
 	// Extract the token from the Authorization header
 	token := r.Header.Get("Authorization")
 	if token == "" {
-		return 0, errors.New("Authorization token missing")
+		return 0, errors.New("authorization token missing")
 	}
-	// Validate token format (should start with "Bearer ")
+	// Validate token format (should start with "Bearer")
 	if len(token) < 7 || token[:7] != "Bearer " {
 		return 0, errors.New("invalid authorization token format")
 	}

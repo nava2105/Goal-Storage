@@ -68,9 +68,9 @@ func CreateGraphQLSchema(factory factories.GoalFactory) graphql.Schema {
 				weight := p.Args["weight"].(float64)
 				bodyStructure := p.Args["body_structure"].(string)
 				createGoalInput := dtos.CreateGoalInput{
-					User_id:        userID,
-					Weight:         weight,
-					Body_structure: bodyStructure,
+					UserId:        userID,
+					Weight:        weight,
+					BodyStructure: bodyStructure,
 				}
 				return factory.CreateGoal(createGoalInput)
 			},
@@ -92,13 +92,13 @@ func CreateGraphQLSchema(factory factories.GoalFactory) graphql.Schema {
 				if err != nil {
 					return nil, errors.New("failed to retrieve goal")
 				}
-				if existingGoal == nil || existingGoal.Goal_id != goalId {
+				if existingGoal == nil || existingGoal.GoalId != goalId {
 					return nil, errors.New("goal not found or does not belong to the user")
 				}
 				updateGoalInput := dtos.CreateGoalInput{
-					User_id:        userID,
-					Weight:         p.Args["weight"].(float64),
-					Body_structure: p.Args["body_structure"].(string),
+					UserId:        userID,
+					Weight:        p.Args["weight"].(float64),
+					BodyStructure: p.Args["body_structure"].(string),
 				}
 				return factory.UpdateGoal(userID, updateGoalInput)
 			},

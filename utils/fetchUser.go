@@ -4,12 +4,13 @@ import (
 	"bytes"
 	"encoding/json"
 	"errors"
+	"io"
 	"net/http"
 	"os"
 	"strings"
 )
 
-// Fetch userId from the Authentication API using the given token
+// FetchUserIdFromAuthAPI Fetch userId from the Authentication API using the given token
 func FetchUserIdFromAuthAPI(token string) (int, error) {
 	authUrl := os.Getenv("AUTH_URL") // Authentication URL from .env
 
@@ -27,7 +28,12 @@ func FetchUserIdFromAuthAPI(token string) (int, error) {
 	if err != nil {
 		return 0, err
 	}
-	defer resp.Body.Close()
+	defer func(Body io.ReadCloser) {
+		err := Body.Close()
+		if err != nil {
+
+		}
+	}(resp.Body)
 
 	if resp.StatusCode != http.StatusOK {
 		return 0, errors.New("authentication API returned error")
